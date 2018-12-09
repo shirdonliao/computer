@@ -1,0 +1,36 @@
+
+1. 协程的定义Coroutines are computer-program components that generalize subroutines for non-preemptive multitasking, by allowing multiple entry points for suspending and resuming execution at certain locations. Coroutines are well-suited for implementing familiar program components such as cooperative tasks, exceptions, event loops, iterators, infinite lists and pipes. --Wikipedia翻译过来就是：协程是一个在多个入口点允许在某些位置挂起和恢复执行的，可以产生非抢占式任务的子程序的计算机程序组件。单独去理解协程的概念有些生涩，我们先去理解与它相近的一个概念——子程序1.子程序的概念我先打个通俗的比方：小明的一家人每天都要喝水，所以小明买了饮水机放在自己的房间里，小明老爸也买了饮水机在自己房间里，小明哥哥也买了一个饮水机在自己房里。那么这三个饮水不仅占地方，还费钱。怎么解决这个问题呢？因此不如一开始就只买一个饮水机，放在大厅里，供他们三个人使用。这样一来，小明，小明老爸，小明哥哥，他们三共同使用一个饮水机了。这个比方虽夸张了些，但是逻辑上：三个饮水机占地方又费钱，它同样体现在程序设计里面就是占用空间和重复编码。为了避免这种功能上的重复，这种编码(子程序)可以只放在一个地方，供该程序中的其它模块进行调用。 有经验的程序员都喜欢自己封装一些模块和函数, 便于代码的复用, 这就子程序的功能.  关于子程序，高德纳的《计算机程序设计艺术》卷一(1.4.1)有更为详细的介绍，我引用一下其中的描述：WHEN A CERTAIN task is to performed at sereral different places in a program ,it is usually undesirable to repeat the coding in each place. To avoid this situation,the coding (called a subroutine) can be put into one place only,and a few extra instructions can be added to restart the outer program properly after the subroutine is finished.Transfer of control between subroutines and main programs is called subroutine linkage.--Donald Knuth.[1]翻译过来就是：当在一个程序的若干个不同的地方，都要执行同一个确定的任务时，通常不希望在每个地方都重复编码，为避免这种重复的情况，这种编码（称为子程序）可以只放在一个地方，而且在这个子程序完成之后，可以附加少量额外的指令，以便适当的重新开始外部的程序。子程序与主程序之间控制的转移，称为子程序的链接。[2]子程序的优点有如下：节省空间, 避免重复写代码使程序逻辑清晰，便于开发者自己和别人调试。因此可以理解为子程序是为了被“共用“而实现的程序，不过也有专用的子程序，它们只打算出现一个地方。3. 协程与子程序的区别Subrountines are special cases of more general program conmponents,called coroutine. In contrast to the unsymmetric relationship between a main routine and a subroutine,there is complete symmetry betweem coroutines,whichi call on each other--Donald Knuth.[3]翻译我就不写了，大意是：子程序是协程的特殊情况，主程序和子程序的关系是非对称的，是调用与被调用的关系, 而协程之间是完全的对称, 它们可以相互调用。这句话可能不太好理解，图在下面:<img src="https://pic4.zhimg.com/v2-5a6599da8257f14c195efa64a520894f_b.jpg" data-size="normal" data-rawwidth="826" data-rawheight="436" data-default-watermark-src="https://pic4.zhimg.com/v2-620161d2f554daafbbc0d82327f1a90f_b.jpg" class="origin_image zh-lightbox-thumb" width="826" data-original="https://pic4.zhimg.com/v2-5a6599da8257f14c195efa64a520894f_r.jpg">主程序和协程的对称关系协程的好处:  主程序和协程之间是完成对称的, 是平等的, 是伪异步的.  当其中主程序挂起或阻塞时,  会切换到协程上执行.当然, 此时有两种可能:       1. 如果协程执行结束, 会直接切换回主进程.        2. 如果协程也发生挂起, 同样会直接切换回主进程.   当主进程再次被挂机时, 又回去执行被挂起的协程.4. 协程, 代码示例(GoLang):比较简单的代码, 只要你有一丁丁的编程基础即可看懂, 即便没学习过Go. 1.我定义了一个协程, 它的功能是乘以2.  2.主程序main是最开始被调用的,  当time.sleelp执行时, 这个时候主程序进行了挂起, 协程抓了时机, 开始执行! 3.但是我设计的协程, 它计算结束后也开始了挂机.  这个时候主程序又开始执行了.4.然后主程序又挂起, 协程继续执行, 这次协程执行完毕5.主程序执行完毕, 它也累了, 然后退出了.package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func main() {
+	fmt.Println("1. 开始执行--主程序")
+	n := 3
+
+	// We want to run a goroutine to multiply n by 2
+	go multiplyByTwo(n)
+
+	time.Sleep(time.Second)        //  主程序第一次挂起, 程序会切换到协程上执行
+	fmt.Println("4. 哈哈, 我又执行主程序了")
+	time.Sleep(time.Second)		   //  主程序第二次挂起
+	fmt.Println("6. 妈的, 累了, 不切换了!")
+}
+
+func multiplyByTwo(num int) int {
+	fmt.Println("2. 开始执行--协程")
+	result := num * 2
+	fmt.Println("3. 协程计算结果:", result)
+	time.Sleep(time.Second)    // 主动挂起, 此时有两个挂机的
+	fmt.Println("5. 哈哈, 我又切换到协程了")
+	return result
+}
+代码执行的结果:1. 开始执行--主程序
+2. 开始执行--协程
+3. 协程计算结果: 6
+4. 哈哈, 我又执行主程序了
+5. 哈哈, 我又切换到协程了
+6. 妈的, 累了, 不切换了!
+上面的结果并不是唯一确定的, 也可以是 1,2,3,5,4,6, 其中4,5的位置有随机性. 等我做个基准测试...这段代码把主程序和协程之间的相互调用体现的淋漓尽致,  这种对称的关系.   5. References:1. 维基百科, Coroutine - Wikipedia2. Knuth, Donald Ervin (1997). Fundamental Algorithms. The Art of Computer Programming. 1 (3rd ed.). Addison-Wesley. Section 1.4.2: Coroutines, pp. 186. ISBN 0-201-89683-4. 3. 计算程序设计艺术.第一卷,基本算法：第3版/(美)高德纳(Knuth,D.E)著；苏运霖译。--北京：国防工业出版社。章节1.4.2:协程，pp. 178-184 ISBN 987 -7 -118 -02799 -0 4. Knuth, Donald Ervin (1997). Fundamental Algorithms. The Art of Computer Programming. 1 (3rd ed.). Addison-Wesley. Section 1.4.2: Coroutines, pp. 193–200. ISBN 0-201-89683-4.  5. 代码示例的参考源:  An introduction to using and visualizing channels in Go ➡️
